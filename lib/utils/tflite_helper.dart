@@ -73,6 +73,71 @@
 // }
 
 // asd2.tflite
+// import 'dart:io';
+// import 'dart:typed_data';
+// import 'package:flutter/services.dart';
+// import 'package:tflite_flutter/tflite_flutter.dart';
+// import 'package:image/image.dart' as img;
+
+// class TFLiteHelper {
+//   Interpreter? _interpreter;
+//   List<String>? _labels;
+
+//   Future<void> loadModel() async {
+//     try {
+//       _interpreter = await Interpreter.fromAsset('assets/asd2.tflite');
+//       print('Model loaded successfully');
+//     } catch (e) {
+//       print('Failed to load model: $e');
+//     }
+
+//     final labelsData = await rootBundle.loadString('assets/label.txt');
+//     _labels =
+//         labelsData.split('\n').where((element) => element.isNotEmpty).toList();
+//   }
+
+//   Future<Map<String, double>> classifyImage(File image) async {
+//     if (_interpreter == null || _labels == null) {
+//       await loadModel();
+//     }
+
+//     var input = _processRawImage(image);
+
+//     var output = List.filled(1, List.filled(1, 0.0));
+//     _interpreter!.run(input, output);
+
+//     // Logging output values for debugging
+//     print("Output value: ${output[0][0]}");
+
+//     Map<String, double> results = {
+//       _labels![0]: output[0][0]
+//     };
+
+//     return results;
+//   }
+
+//   Uint8List _processRawImage(File imageFile) {
+//     final image = img.decodeImage(imageFile.readAsBytesSync())!;
+//     final resizedImage = img.copyResize(image, width: 224, height: 224);
+
+//     var input = Float32List(1 * 224 * 224 * 3);
+//     var buffer = Float32List.view(input.buffer);
+
+//     for (int y = 0; y < 224; y++) {
+//       for (int x = 0; x < 224; x++) {
+//         var idx = (y * 224 + x);
+
+//         var pixel = resizedImage.getPixel(x, y);
+//         buffer[idx + 0 * 224 * 224] = img.getRed(pixel) / 255;
+//         buffer[idx + 1 * 224 * 224] = img.getGreen(pixel) / 255;
+//         buffer[idx + 2 * 224 * 224] = img.getBlue(pixel) / 255;
+//       }
+//     }
+
+//     return input.buffer.asUint8List();
+//   }
+// }
+
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
@@ -107,11 +172,14 @@ class TFLiteHelper {
     _interpreter!.run(input, output);
 
     // Logging output values for debugging
-    print("Output value: ${output[0][0]}");
+    print("Output values: ${output[0]}");
 
-    // Create a map to store label and confidence values
+    double probabilityAutistic = output[0][0];
+    double probabilityNonAutistic = 1 - probabilityAutistic;
+
     Map<String, double> results = {
-      _labels![0]: output[0][0] // Assuming the label is at index 0
+      _labels![0]: probabilityAutistic,
+      _labels![1]: probabilityNonAutistic,
     };
 
     return results;
@@ -126,15 +194,16 @@ class TFLiteHelper {
 
     for (int y = 0; y < 224; y++) {
       for (int x = 0; x < 224; x++) {
-        var idx = (y * 224 + x);
+        var idx = (y * 224 + x) * 3;
 
         var pixel = resizedImage.getPixel(x, y);
-        buffer[idx + 0 * 224 * 224] = img.getRed(pixel) / 255;
-        buffer[idx + 1 * 224 * 224] = img.getGreen(pixel) / 255;
-        buffer[idx + 2 * 224 * 224] = img.getBlue(pixel) / 255;
+        buffer[idx] = img.getRed(pixel) / 255.0;
+        buffer[idx + 1] = img.getGreen(pixel) / 255.0;
+        buffer[idx + 2] = img.getBlue(pixel) / 255.0;
       }
     }
 
     return input.buffer.asUint8List();
   }
 }
+

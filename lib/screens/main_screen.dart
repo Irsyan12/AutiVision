@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../widgets/customButton.dart';
@@ -6,8 +7,13 @@ import 'history_screen.dart';
 import 'profile_screen.dart';
 import '../widgets/buttomNav.dart';
 import '../utils/tflite_helper.dart';
+import '../services/history_service.dart';
 
 class MainScreen extends StatefulWidget {
+  final User? user;
+
+  MainScreen({Key? key, required this.user}) : super(key: key);
+
   @override
   _MainScreenState createState() => _MainScreenState();
 }
@@ -23,6 +29,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -43,7 +50,7 @@ class _MainScreenState extends State<MainScreen> {
         controller: _pageController,
         onPageChanged: _onPageChanged,
         children: [
-          MainContentScreen(),
+          MainContentScreen(user: widget.user),
           HistoryScreen(),
           ProfileScreen(),
         ],
@@ -55,8 +62,11 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
-
 class MainContentScreen extends StatelessWidget {
+  final User? user;
+
+  const MainContentScreen({Key? key, required this.user}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -69,7 +79,7 @@ class MainContentScreen extends StatelessWidget {
               width: double.infinity,
             ),
             Header(),
-            Positioned(top: 130, left: 0, right: 0, child: Content()),
+            Positioned(top: 130, left: 0, right: 0, child: Content(user: user)),
             SizedBox(
               height: 20,
             ),
@@ -81,6 +91,8 @@ class MainContentScreen extends StatelessWidget {
 }
 
 class Header extends StatelessWidget {
+  const Header({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -126,6 +138,10 @@ class Header extends StatelessWidget {
 }
 
 class Content extends StatefulWidget {
+  final User? user;
+
+  const Content({Key? key, required this.user}) : super(key: key);
+
   @override
   State<Content> createState() => _ContentState();
 }
@@ -135,6 +151,7 @@ class _ContentState extends State<Content> {
   final ImagePicker _picker = ImagePicker();
   bool _loading = false;
   Map<String, double>? _classificationResult;
+  final HistoryService _HistoryService = HistoryService();
 
   Future<void> _pickImage(ImageSource source) async {
     var image = await _picker.pickImage(source: source);
@@ -156,6 +173,59 @@ class _ContentState extends State<Content> {
       _loading = false;
       _classificationResult = result;
     });
+
+    // Ensure _user is not null before accessing its properties
+    if (widget.user != null) {
+      // Upload gambar ke Firestore Storage
+      try {
+        String imageUrl =
+            await _HistoryService.uploadImage(image, widget.user!.uid);
+
+        // Simpan hasil klasifikasi ke Firestore
+        await _HistoryService.addToHistory(imageUrl, getClassificationLabel(),
+            _classificationResult!.values.first, widget.user!.uid);
+      } catch (e) {
+        print('Error uploading image and saving to history: $e');
+        // Handle error
+      }
+    }
+  }
+
+  Color getResultColor() {
+    if (_classificationResult != null && _classificationResult!.isNotEmpty) {
+      String classification = _classificationResult!.entries
+          .reduce((a, b) => a.value > b.value ? a : b)
+          .key;
+      if (classification == 'Autistic') {
+        return Colors.red;
+      } else if (classification == 'Non Autistic') {
+        return Colors.green;
+      } else {
+        return Colors.black;
+      }
+    } else {
+      return Colors.black;
+    }
+  }
+
+  String getConfidencePercentage() {
+    if (_classificationResult != null && _classificationResult!.isNotEmpty) {
+      double confidence =
+          _classificationResult!.values.reduce((a, b) => a > b ? a : b);
+      return '${(confidence * 100).toStringAsFixed(2)}%';
+    } else {
+      return '';
+    }
+  }
+
+  String getClassificationLabel() {
+    if (_classificationResult != null && _classificationResult!.isNotEmpty) {
+      return _classificationResult!.entries
+          .reduce((a, b) => a.value > b.value ? a : b)
+          .key;
+    } else {
+      return 'N/A';
+    }
   }
 
   Future<void> _showImagePickerOptions() async {
@@ -187,38 +257,6 @@ class _ContentState extends State<Content> {
         );
       },
     );
-  }
-
-  Color getResultColor() {
-    if (_classificationResult != null && _classificationResult!.isNotEmpty) {
-      String classification = _classificationResult!.keys.first;
-      if (classification == 'Autistic') {
-        return Colors.red;
-      } else if (classification == 'Non Autistic') {
-        return Colors.green;
-      } else {
-        return Colors.black;
-      }
-    } else {
-      return Colors.black;
-    }
-  }
-
-  String getConfidencePercentage() {
-    if (_classificationResult != null && _classificationResult!.isNotEmpty) {
-      double confidence = _classificationResult!.values.first;
-      return '${(confidence * 100).toStringAsFixed(2)}%';
-    } else {
-      return '';
-    }
-  }
-
-  String getClassificationLabel() {
-    if (_classificationResult != null && _classificationResult!.isNotEmpty) {
-      return _classificationResult!.keys.first;
-    } else {
-      return 'N/A';
-    }
   }
 
   @override
@@ -316,31 +354,34 @@ class _ContentState extends State<Content> {
                   ),
                 ),
                 Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        getClassificationLabel(),
-                        style: TextStyle(
-                          color: getResultColor(),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          getClassificationLabel(),
+                          style: TextStyle(
+                            color: getResultColor(),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        _classificationResult != null &&
-                                _classificationResult!.isNotEmpty
-                            ? '(${getConfidencePercentage()})'
-                            : '',
-                        style: TextStyle(
-                          color: getResultColor().withOpacity(0.5),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                        SizedBox(width: 8),
+                        Text(
+                          _classificationResult != null &&
+                                  _classificationResult!.isNotEmpty
+                              ? '(${getConfidencePercentage()})'
+                              : '',
+                          style: TextStyle(
+                            color: getResultColor().withOpacity(0.5),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],

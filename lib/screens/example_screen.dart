@@ -1,7 +1,29 @@
 import 'package:autivision/widgets/customButton.dart';
 import 'package:flutter/material.dart';
 
-class ExampleScreen extends StatelessWidget {
+class ExampleScreen extends StatefulWidget {
+  @override
+  _ExampleScreenState createState() => _ExampleScreenState();
+}
+
+class _ExampleScreenState extends State<ExampleScreen> {
+  // Dummy URL for demonstration, replace with your actual Firebase Storage URL
+  String imageUrl =
+      'https://firebasestorage.googleapis.com/v0/b/autivision-c1daf.appspot.com/o/example_image.jpg?alt=media';
+
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Simulate loading delay for demonstration
+    Future.delayed(Duration(seconds: 2), () {
+      setState(() {
+        _isLoading = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,12 +65,20 @@ class ExampleScreen extends StatelessWidget {
                             )
                           ],
                         ),
-                        child: Image.asset(
-                          'assets/images/example_image.jpg', // Path to your example image
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.contain,
-                        ),
+                        child: _isLoading
+                            ? Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF034B6C),
+                                  ),
+                                ),
+                              )
+                            : Image.network(
+                                imageUrl, 
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.contain,
+                              ),
                       ),
                       SizedBox(height: 26),
                       Container(

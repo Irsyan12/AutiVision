@@ -10,6 +10,7 @@ class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   User? _user;
+  String? get userId => _user?.uid;
   Map<String, dynamic>? _userData;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
