@@ -231,6 +231,7 @@ class _HistoryItemState extends State<HistoryItem> {
           ),
         ],
       ),
+      
       child: Row(
         children: [
           Stack(
