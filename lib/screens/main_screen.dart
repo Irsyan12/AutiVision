@@ -62,6 +62,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
+
 class MainContentScreen extends StatelessWidget {
   final User? user;
 
@@ -174,22 +175,28 @@ class _ContentState extends State<Content> {
       _classificationResult = result;
     });
 
-    // Ensure _user is not null before accessing its properties
     if (widget.user != null) {
-      // Upload gambar ke Firestore Storage
       try {
         String imageUrl =
             await _HistoryService.uploadImage(image, widget.user!.uid);
 
-        // Simpan hasil klasifikasi ke Firestore
-        await _HistoryService.addToHistory(imageUrl, getClassificationLabel(),
-            _classificationResult!.values.first, widget.user!.uid);
+        double confidence = double.parse(
+          (_classificationResult!.values.reduce((a, b) => a > b ? a : b) * 100)
+              .toStringAsFixed(2),
+        );
+
+        await _HistoryService.addToHistory(
+          imageUrl,
+          getClassificationLabel(),
+          confidence,
+          widget.user!.uid,
+        );
       } catch (e) {
         print('Error uploading image and saving to history: $e');
-        // Handle error
       }
     }
   }
+
 
   Color getResultColor() {
     if (_classificationResult != null && _classificationResult!.isNotEmpty) {

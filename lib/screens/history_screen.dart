@@ -6,8 +6,57 @@ import 'package:provider/provider.dart';
 import 'package:autivision/providers/auth_provider.dart';
 import 'package:intl/intl.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
+  @override
+  _HistoryScreenState createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
   final HistoryService _historyService = HistoryService();
+  late List<bool> selected;
+  late List<Map<String, dynamic>> historyData;
+  bool selectionMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    selected = [];
+    historyData = [];
+  }
+
+  void onLongPress(int index) {
+    setState(() {
+      selectionMode = true;
+      selected[index] = !selected[index];
+    });
+  }
+
+  void onTap(int index) {
+    if (selectionMode) {
+      setState(() {
+        selected[index] = !selected[index];
+      });
+    }
+  }
+
+  void deleteSelectedItems(String userId) async {
+    for (int i = selected.length - 1; i >= 0; i--) {
+      if (selected[i]) {
+        await _historyService.deleteHistoryItem(
+          historyData[i]['id'],
+          userId,
+          historyData[i]['imageUrl'],
+        );
+        historyData.removeAt(i);
+        selected.removeAt(i);
+      }
+    }
+    setState(() {
+      if (selected.isEmpty) {
+        selectionMode = false;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,6 +66,39 @@ class HistoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Riwayat',
+        actions: [
+          if (selectionMode)
+            IconButton(
+              icon: Icon(Icons.delete, color: Colors.white, size: 30),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: Text('Hapus Riwayat Yang Dipilih'),
+                      content: Text(
+                          'Apakah Anda yakin ingin menghapus item yang dipilih?'),
+                      actions: [
+                        TextButton(
+                          child: Text('Cancel'),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                        TextButton(
+                          child: Text('Delete'),
+                          onPressed: () {
+                            deleteSelectedItems(userId!);
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+        ],
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _historyService.loadHistory(userId: userId!),
@@ -42,17 +124,31 @@ class HistoryScreen extends StatelessWidget {
               ),
             );
           } else {
-            final historyData = snapshot.data!;
+            historyData = snapshot.data!;
+            if (selected.isEmpty) {
+              selected =
+                  List<bool>.generate(historyData.length, (index) => false);
+            }
             return ListView.builder(
               padding: EdgeInsets.all(10),
               itemCount: historyData.length,
               itemBuilder: (context, index) {
                 final item = historyData[index];
-                return HistoryItem(
-                  imageUrl: item['imageUrl']!,
-                  status: item['classification']!,
-                  date: item['timestamp'].toDate(),
-                  confidence: item['confidence'],
+                return GestureDetector(
+                  onLongPress: () => onLongPress(index),
+                  onTap: () => onTap(index),
+                  child: HistoryItem(
+                    imageUrl: item['imageUrl']!,
+                    status: item['classification']!,
+                    date: item['timestamp'].toDate(),
+                    confidence: item['confidence'],
+                    isSelected: selected[index],
+                    onSelect: (isSelected) {
+                      setState(() {
+                        selected[index] = isSelected;
+                      });
+                    },
+                  ),
                 );
               },
             );
@@ -63,48 +159,69 @@ class HistoryScreen extends StatelessWidget {
   }
 }
 
-class HistoryItem extends StatelessWidget {
+class HistoryItem extends StatefulWidget {
   final String imageUrl;
   final String status;
   final DateTime date;
   final double confidence;
+  final bool isSelected;
+  final ValueChanged<bool> onSelect;
 
   HistoryItem({
     required this.imageUrl,
     required this.status,
     required this.date,
     required this.confidence,
+    required this.isSelected,
+    required this.onSelect,
   });
+
+  @override
+  _HistoryItemState createState() => _HistoryItemState();
+}
+
+class _HistoryItemState extends State<HistoryItem> {
+  late bool isSelected;
+
+  @override
+  void initState() {
+    super.initState();
+    isSelected = widget.isSelected;
+  }
+
+  void toggleSelection() {
+    setState(() {
+      isSelected = !isSelected;
+      widget.onSelect(isSelected);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     Color statusColor;
     IconData statusIcon;
 
-    // Tentukan warna status dan ikon berdasarkan status
-    if (status == 'Autistic') {
+    if (widget.status == 'Autistic') {
       statusColor = Colors.red;
       statusIcon = Icons.error_outline;
-    } else if (status == 'Non Autistic') {
+    } else if (widget.status == 'Non Autistic') {
       statusColor = Colors.green;
       statusIcon = Icons.check_circle_outline;
     } else {
-      statusColor = Colors.grey; // Warna default untuk status lainnya
+      statusColor = Colors.grey;
       statusIcon = Icons.help_outline;
     }
 
-    // Format tanggal
     final dateFormat = DateFormat('EEEE, dd/MM/yyyy', 'id');
-    final formattedDate = dateFormat.format(date);
+    final formattedDate = dateFormat.format(widget.date);
 
-    // Format confidence
-    final formattedConfidence = '${(confidence * 100).toStringAsFixed(0)}%';
+    final formattedConfidence = '${widget.confidence.toStringAsFixed(2)}%';
 
     return Container(
       margin: EdgeInsets.symmetric(vertical: 8),
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isSelected ? Colors.black38.withOpacity(0.2) : Colors.white,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -119,8 +236,17 @@ class HistoryItem extends StatelessWidget {
           Stack(
             children: [
               CircleAvatar(
-                backgroundImage: NetworkImage(imageUrl),
                 radius: 30,
+                backgroundColor: Colors.grey[200],
+                child: ClipOval(
+                  child: FadeInImage.assetNetwork(
+                    placeholder: 'assets/images/loading.gif',
+                    image: widget.imageUrl,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
               Positioned(
                 bottom: 0,
@@ -143,7 +269,7 @@ class HistoryItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  status,
+                  widget.status,
                   style: TextStyle(
                     color: statusColor,
                     fontWeight: FontWeight.bold,

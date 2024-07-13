@@ -46,13 +46,28 @@ class HistoryService {
 
       QuerySnapshot querySnapshot = await query.get();
       final data = querySnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
+          .map((doc) => {
+                ...doc.data() as Map<String, dynamic>,
+                'id': doc.id,
+              })
           .toList();
 
       return data;
     } catch (e) {
       print('Error loading history: $e');
       rethrow;
+    }
+  }
+
+  Future<void> deleteHistoryItem(
+      String id, String userId, String imageUrl) async {
+    try {
+      await _firestore.collection('history').doc(id).delete();
+      Reference storageRef = _storage.refFromURL(imageUrl);
+      await storageRef.delete();
+    } catch (e) {
+      print('Error deleting history item: $e');
+      throw e;
     }
   }
 }

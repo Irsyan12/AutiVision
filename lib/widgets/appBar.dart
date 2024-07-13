@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool showLeading;
+  final List<Widget>? actions;
 
   CustomAppBar({
     required this.title,
     this.showLeading = false,
+    this.actions,
   });
 
   @override
@@ -29,6 +31,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           bottom: Radius.circular(30),
         ),
       ),
+      actions: actions,
       bottom: PreferredSize(
         preferredSize: Size.fromHeight(10),
         child: Container(
