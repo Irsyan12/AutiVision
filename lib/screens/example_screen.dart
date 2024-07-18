@@ -83,7 +83,7 @@ class _ExampleScreenState extends State<ExampleScreen> {
                       SizedBox(height: 26),
                       Container(
                         width: 285,
-                        padding: const EdgeInsets.symmetric(horizontal: 17),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

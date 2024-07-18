@@ -1,3 +1,4 @@
+import 'package:autivision/screens/detail_history.dart';
 import 'package:autivision/widgets/appBar.dart';
 import 'package:flutter/material.dart';
 import 'package:autivision/services/history_service.dart';
@@ -32,12 +33,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void onTap(int index) {
-    if (selectionMode) {
-      setState(() {
-        selected[index] = !selected[index];
-      });
-    }
+  if (selectionMode) {
+    setState(() {
+      selected[index] = !selected[index];
+    });
+  } else {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DetailHistoryScreen(historyItem: historyData[index]),
+      ),
+    );
   }
+}
+
 
   void deleteSelectedItems(String userId) async {
     for (int i = selected.length - 1; i >= 0; i--) {

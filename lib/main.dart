@@ -1,3 +1,4 @@
+import 'package:autivision/screens/detail_history.dart';
 import 'package:autivision/screens/forgotPassword_screen.dart';
 import 'package:autivision/services/history_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -53,6 +54,9 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => SignupScreen(),
         '/onBoarding': (context) => OnBoardingScreen(),
         '/example': (context) => ExampleScreen(),
+        '/detail': (context) => DetailHistoryScreen(
+              historyItem: {},
+            ),
         '/history': (context) {
           User? user = FirebaseAuth.instance.currentUser;
           if (user != null) {
